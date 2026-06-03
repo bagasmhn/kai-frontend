@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Ticket, QrCode, X, Download, Users } from "lucide-react";
+import { Ticket, QrCode, X, Download, Users, Printer } from "lucide-react";
 import PageWrapper from "@/components/PageWrapper";
 import { getUser } from "@/lib/auth";
 import { bookingAPI } from "@/lib/api";
@@ -44,6 +44,24 @@ export default function MyBookingPage() {
       setTimeout(() => URL.revokeObjectURL(url), 60_000);
     } catch {
       toast("error", "Gagal membuka tiket");
+    }
+  };
+
+  const downloadTicket = async (booking: Booking) => {
+    try {
+      const res = await bookingAPI.getTicket(booking.id);
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${booking.kodeTransaksi || `ticket-${booking.id}`}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+      toast("success", "Tiket berhasil diunduh");
+    } catch {
+      toast("error", "Gagal mengunduh tiket");
     }
   };
 
@@ -100,7 +118,7 @@ export default function MyBookingPage() {
 
                 <div className="flex items-center justify-between">
                   <div className="text-rail-400 font-semibold">{fmtCurr(booking.totalHarga)}</div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => setSelected(booking)}
                       className="flex items-center gap-1.5 px-3 py-1.5 glass hover:bg-white/5 text-white/60 hover:text-white text-xs rounded-lg transition-all"
@@ -111,7 +129,13 @@ export default function MyBookingPage() {
                       onClick={() => openTicket(booking.id)}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-rail-600 hover:bg-rail-500 text-white text-xs rounded-lg transition-all"
                     >
-                      <Download className="w-3.5 h-3.5" /> Cetak Tiket
+                      <Printer className="w-3.5 h-3.5" /> Cetak Tiket
+                    </button>
+                    <button
+                      onClick={() => downloadTicket(booking)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white text-xs rounded-lg transition-all"
+                    >
+                      <Download className="w-3.5 h-3.5" /> Download Tiket
                     </button>
                   </div>
                 </div>
