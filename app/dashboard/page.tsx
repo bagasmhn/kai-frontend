@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Train, Ticket, Users, TrendingUp, Calendar, ArrowRight, Clock, MapPin } from "lucide-react";
 import PageWrapper from "@/components/PageWrapper";
 import { getUser, isAdmin } from "@/lib/auth";
-import { jadwalAPI, bookingAPI } from "@/lib/api";
+import { jadwalAPI, bookingAPI, userAPI } from "@/lib/api";
 import { toast } from "@/components/Toast";
 import { normalizeBooking, normalizeCollection, normalizeJadwal } from "@/lib/normalize";
 
@@ -19,6 +19,8 @@ export default function DashboardPage() {
 
   const [jadwals, setJadwals] = useState<Jadwal[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [totalUsers, setTotalUsers] = useState<number>(0);
+  const [totalRevenue, setTotalRevenue] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,12 +33,22 @@ export default function DashboardPage() {
 
   const loadData = async () => {
     try {
-      const [jRes, bRes] = await Promise.all([
+      const [jRes, bRes, uRes, rRes] = await Promise.all([
         jadwalAPI.getAll(),
         isAdmin() ? bookingAPI.getAll() : bookingAPI.getMy(),
+        isAdmin() ? userAPI.getAll() : Promise.resolve({ data: [] }),
+        isAdmin() ? bookingAPI.getRekap() : Promise.resolve({ data: { totalPemasukan: 0 } }),
       ]);
+
       setJadwals(normalizeCollection(jRes.data, normalizeJadwal));
       setBookings(normalizeCollection(bRes.data, normalizeBooking));
+
+      if (isAdmin()) {
+        const users = uRes.data?.data || uRes.data || [];
+        const rekapData = rRes.data?.data || rRes.data || {};
+        setTotalUsers(Array.isArray(users) ? users.length : 0);
+        setTotalRevenue(Number(rekapData.totalPemasukan || 0));
+      }
     } catch {
       toast("error", "Gagal memuat data");
     } finally {
@@ -53,8 +65,8 @@ export default function DashboardPage() {
     ? [
         { label: "Total Jadwal", value: jadwals.length, icon: Train, color: "text-rail-400", bg: "bg-rail-600/20" },
         { label: "Total Booking", value: bookings.length, icon: Ticket, color: "text-emerald-400", bg: "bg-emerald-600/20" },
-        { label: "Pengguna Aktif", value: "-", icon: Users, color: "text-purple-400", bg: "bg-purple-600/20" },
-        { label: "Pendapatan", value: "-", icon: TrendingUp, color: "text-gold-400", bg: "bg-yellow-600/20" },
+        { label: "Pengguna Aktif", value: loading ? "—" : totalUsers, icon: Users, color: "text-purple-400", bg: "bg-purple-600/20" },
+        { label: "Pendapatan", value: loading ? "—" : fmtCurr(totalRevenue), icon: TrendingUp, color: "text-gold-400", bg: "bg-yellow-600/20" },
       ]
     : [
         { label: "Total Booking", value: bookings.length, icon: Ticket, color: "text-rail-400", bg: "bg-rail-600/20" },
